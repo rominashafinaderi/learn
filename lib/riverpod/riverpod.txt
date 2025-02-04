@@ -1,0 +1,51 @@
+Make your first provider/network request
+
+flutter pub add riverpod
+
+////Setting up ProviderScope
+
+void main() {
+  runApp(
+    // This should not be inside "MyApp" but as direct parameter to "runApp".
+    ProviderScope(
+      child: MyApp(),
+    ),
+  );
+}
+
+////Performing your network request in a "provider"
+
+Performing a network request is usually what we call "business logic".
+They behave like normal functions, with the added benefits of:
+Being cached
+Offering default error/loading handling
+Being listenable
+Automatically re-executing when some data changes
+
+////Defining the model
+
+crating  the activity model for this josn by freezed package
+{
+  "key": "12345",
+  "activity": "پیاده‌روی در پارک",
+  "type": "outdoor",
+  "participants": 2,
+  "price": 0.0
+}
+flutter pub run build_runner build --delete-conflicting-outputs
+
+////Creating the provider
+
+The syntax for defining a provider is as followed:
+
+@riverpod
+Result myFunction(Ref ref) {
+  <your logic here>
+}
+
+@riverpod is annotation
+Annotated functions must specify a "ref" as first parameter.
+Besides that, the function can have any number of parameters, including generics. The function is also free to return a Future/Stream if it wishes to.
+
+This function will be called when the provider is first read.
+Subsequent reads will not call the function again, but instead return the cached value.
