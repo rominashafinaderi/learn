@@ -1,0 +1,68 @@
+Make your first provider/network request
+
+flutter pub add riverpod
+flutter pub add flutter_riverpod
+flutter pub add riverpod_annotation
+flutter pub add dev:riverpod_generator
+flutter pub add dev:build_runner
+flutter pub add dev:custom_lint
+flutter pub add dev:riverpod_lint
+
+////Setting up ProviderScope
+
+void main() {
+  runApp(
+    // This should not be inside "MyApp" but as direct parameter to "runApp".
+    ProviderScope(
+      child: MyApp(),
+    ),
+  );
+}
+
+////Performing your network request in a "provider"
+
+Performing a network request is usually what we call "business logic".
+They behave like normal functions, with the added benefits of:
+Being cached
+Offering default error/loading handling
+Being listenable
+Automatically re-executing when some data changes
+
+////Defining the model
+
+crating  the activity model for this josn by freezed package
+{
+  "key": "12345",
+  "activity": "پیاده‌روی در پارک",
+  "type": "outdoor",
+  "participants": 2,
+  "price": 0.0
+}
+flutter pub run build_runner build --delete-conflicting-outputs
+
+////Creating the provider
+
+اطلاعات رو یک‌بار دریافت می‌کنه و هر وقت نیاز داشتی، همون اطلاعات رو بهت میده. اینطوری دیگه لازم نیست هر بار از اول همه چیزو لود کنی و برنامه سریع‌تر کار می‌کنهProvider
+پس Provider چجوری به ما کمک می‌کنه؟
+🔹 اطلاعات رو یکبار دریافت و ذخیره می‌کنه.
+🔹 هر بار که نیاز داشتی، همون اطلاعات رو بدون تاخیر بهت میده.
+🔹 اگه اطلاعات تغییر کنه، به صورت اتوماتیک صفحه رو آپدیت می‌کنه.
+🔹 باعث می‌شه برنامه بهینه و سریع‌تر بشه.
+The syntax for defining a provider is as followed:
+
+@riverpod
+Result myFunction(Ref ref) {
+  <your logic here>
+}
+
+@riverpod is annotation
+Annotated functions must specify a "ref" as first parameter.
+Besides that, the function can have any number of parameters, including generics. The function is also free to return a Future/Stream if it wishes to.
+
+This function will be called when the provider is first read.
+Subsequent reads will not call the function again, but instead return the cached value.
+
+///screens
+WidgetRef ref چیه و چه کاری انجام می‌ده؟
+WidgetRef در Riverpod استفاده می‌شه تا یک ویجت بتونه به Providerها دسترسی داشته باشه.
+در ویجت‌های ConsumerWidget و ConsumerStatefulWidget، از WidgetRef برای خواندن (watch)، گوش دادن (listen) و تعامل با Providerها استفاده می‌کنیم.
