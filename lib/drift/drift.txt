@@ -525,3 +525,465 @@ class User {
   User({required this.id, required this.name, required this.birthday});
 }
 ✅ حالا کلاس User مستقیماً نماینده‌ی داده‌های دیتابیسه!
+
+/////Using records
+
+۱. استفاده از Records به جای کلاس‌های معمولی
+🔹 مشکل: وقتی داری داده‌های دیتابیس رو توی کلاس ذخیره می‌کنی، گاهی فقط یه مدل ساده می‌خوای و نمی‌خوای یه کلاس جدا برای هر جدول بسازی.
+🔹 راه‌حل: می‌تونی به جای کلاس، از Record یا typedef استفاده کنی که سبک‌تره.
+
+✅ روش کار
+
+@UseRowClass(Record) // Drift یک رکورد می‌سازد مثل: ({int id, String name})
+class Categories extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get name => text()();
+}
+📌 نتیجه: حالا به جای یه کلاس، یه record داریم که کم‌حجم‌تره.
+
+یا اگر بخوای صراحتاً نوع رکورد رو مشخص کنی:
+
+typedef TodoItem = ({int id, String content, int author});
+
+@UseRowClass(TodoItem)
+class TodoItems extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get content => text()();
+  IntColumn get author => integer().references(Users, #id)();
+}
+💡 یعنی دیگه نیازی نیست کلاس TodoItem رو بسازی، فقط typedef کافیه!
+
+📌 ۲. استفاده از یک Constructor خاص برای تبدیل ردیف‌های دیتابیس
+🔹 مشکل: فرض کن می‌خوای یه کانستراکتور خاص برای دریافت داده‌های دیتابیس استفاده کنی.
+🔹 راه‌حل: توی Drift می‌تونی مشخص کنی که داده‌ها با کدوم کانستراکتور ساخته بشن.
+
+✅ روش کار
+
+@UseRowClass(User, constructor: 'fromDb')
+class Users extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get name => text()();
+  DateTimeColumn get birthday => dateTime()();
+}
+
+class User {
+  final int id;
+  final String name;
+  final DateTime birthday;
+
+  User.fromDb({required this.id, required this.name, required this.birthday});
+}
+📌 نتیجه: حالا وقتی Drift داده‌های Users رو برمی‌گردونه، از User.fromDb استفاده می‌کنه.
+
+📌 ۳. ساخت Companion اختصاصی برای Insert و Update
+🔹 مشکل: Drift به صورت خودکار Companion می‌سازه، ولی اگه بخوای خودت یه Companion اختصاصی بسازی چی؟
+🔹 راه‌حل: باید کلاس رو از Insertable<T> پیاده‌سازی کنی و toColumns() رو override کنی.
+
+✅ روش کار
+
+class User implements Insertable<User> {
+  final int id;
+  final String name;
+  final DateTime birthDate;
+
+  User({required this.id, required this.name, required this.birthDate});
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    return UsersCompanion(
+      id: Value(id),
+      name: Value(name),
+      birthDate: Value(birthDate),
+    ).toColumns(nullToAbsent);
+  }
+}
+📌 نتیجه: حالا می‌تونی آبجکت‌های User رو مستقیم توی دیتابیس insert یا update کنی.
+
+🔵 روش پیشرفته‌تر:
+اگه این override کردن سختت بود، Drift یه روش دیگه هم داره به اسم write_to_columns_mixins.
+وقتی فعالش کنی، یه متد toInsertable() می‌سازه که خودش این کار رو برات انجام می‌ده.
+
+class User implements Insertable<User> {
+  // ...
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    return toInsertable().toColumns(nullToAbsent);
+  }
+}
+🔹 حالا دیگه نیازی به نوشتن Companion نداری و Drift خودش مدیریت می‌کنه. 😎
+
+📌 ۴. استفاده از متد استاتیک برای دریافت داده از دیتابیس
+🔹 مشکل: گاهی ممکنه پردازش داده‌های دریافتی از دیتابیس نیاز به async داشته باشه (مثلاً وقتی داده‌های پیچیده داری).
+🔹 راه‌حل: می‌تونی از متد استاتیک async استفاده کنی به جای کانستراکتور.
+
+✅ روش کار
+
+class User {
+  final int id;
+  final String name;
+  final DateTime birthday;
+
+  User(this.id, this.name, this.birthday);
+
+  static Future<User> load(int id, String name, DateTime birthday) async {
+    // فرض کن باید یه عملیات اضافی async انجام بشه
+    await Future.delayed(Duration(seconds: 1));
+    return User(id, name, birthday);
+  }
+}
+📌 نتیجه: حالا Drift می‌تونه User.load() رو صدا بزنه و منتظر لود شدن اطلاعات بمونه! 🚀
+
+🔷 خلاصه‌ی ساده
+✅ Records جایگزین سبکی برای کلاس‌های داده‌ای (Row Class) هستند.
+✅ می‌تونی با @UseRowClass(TodoItem) مستقیماً typedef تعریف کنی.
+✅ اگه نیاز داری داده‌های دیتابیس رو با یه کانستراکتور خاص لود کنی، از constructor: 'fromDb' استفاده کن.
+✅ برای کنترل بهتر insert و update می‌تونی خودت Companion اختصاصی بسازی.
+✅ اگه نیاز به async داری، می‌تونی متد استاتیک مثل User.load() بسازی تا Drift از اون استفاده کنه.
+
+////Custom dataclass in drift files
+
+۱. ایجاد جدول با کلاس سفارشی ✅
+فرض کنید یک کلاس Dart به نام User داریم:
+
+class User {
+  final int id;
+  final String name;
+  final DateTime birthDate;
+
+  User(this.id, this.name, this.birthDate);
+}
+می‌خواهیم این کلاس را در پایگاه داده استفاده کنیم. در فایل Drift خود (.drift) می‌توانیم به شکل زیر از کلاس User استفاده کنیم:
+
+import 'user.dart'; -- فایل کلاس Dart را وارد کنید
+
+CREATE TABLE users(
+  id INTEGER NOT NULL PRIMARY KEY,
+  name TEXT NOT NULL,
+  birth_date DATETIME NOT NULL
+) WITH User;
+✅ Drift به‌صورت خودکار از کلاس User برای مدل داده‌ها استفاده خواهد کرد!
+
+۲. استفاده از سازنده‌ی نام‌گذاری شده (Named Constructor) 🏗️
+اگر کلاس User دارای سازنده نام‌گذاری شده باشد:
+
+class User {
+  final int id;
+  final String name;
+  final DateTime birthDate;
+
+  User.fromDatabase(this.id, this.name, this.birthDate);
+}
+در فایل .drift می‌توانیم آن را این‌گونه مشخص کنیم:
+
+CREATE TABLE users(
+  id INTEGER NOT NULL PRIMARY KEY,
+  name TEXT NOT NULL,
+  birth_date DATETIME NOT NULL
+) WITH User.fromDatabase;
+✅ این روش باعث می‌شود که Drift از این سازنده‌ی خاص برای تبدیل داده‌های پایگاه داده به کلاس User استفاده کند.
+
+۳. کلاس سفارشی برای نتایج کوئری 🔍
+گاهی اوقات می‌خواهیم نتیجه‌ی یک کوئری خاص را در یک کلاس سفارشی قرار دهیم.
+
+🔹 مثال: فرض کنید یک کلاس داریم که نام و میانگین سن کاربران را نگه می‌دارد:
+
+class MyExistingClass {
+  final String name;
+  final double avgAge;
+
+  MyExistingClass(this.name, this.avgAge);
+}
+می‌توانیم یک کوئری Drift تعریف کنیم که مستقیماً از این کلاس استفاده کند:
+
+
+import 'my_existing_class.dart';
+
+myQuery WITH MyExistingClass:
+SELECT name, AVG(age) AS avg_age FROM users GROUP BY name;
+✅ حالا نتیجه‌ی این کوئری مستقیماً در کلاس MyExistingClass ذخیره می‌شود.
+
+۴. کوئری با استفاده از لیست و آبجکت‌های تو در تو 📦
+فرض کنید یک جدول برای کارمندان داریم:
+
+CREATE TABLE employees(
+  id INTEGER NOT NULL PRIMARY KEY,
+  name TEXT NOT NULL,
+  supervisor INTEGER REFERENCES employees(id)
+);
+حالا می‌خواهیم یک کوئری بنویسیم که اطلاعات هر کارمند، نام سرپرست و لیستی از کارکنان زیردست را نگه دارد.
+
+
+employeeWithStaff WITH EmployeeWithStaff:
+SELECT
+    self.**,
+    supervisor.name,
+    LIST(SELECT * FROM employees WHERE supervisor = self.id) AS staff
+  FROM employees AS self
+    INNER JOIN employees supervisor ON supervisor.id = self.supervisor
+  WHERE id = ?;
+🔹 این کوئری اطلاعات یک کارمند را همراه با نام سرپرست و لیست زیردستانش برمی‌گرداند.
+
+✅ ساختار کلاس مربوطه در Dart به این شکل خواهد بود:
+
+class Employee {
+  final int id;
+  final String name;
+
+  Employee(this.id, this.name);
+}
+
+class IdAndName {
+  final int id;
+  final String name;
+
+  IdAndName(this.id, this.name);
+}
+
+class EmployeeWithStaff {
+  final Employee self;
+  final String supervisor;
+  final List<IdAndName> staff;
+
+  EmployeeWithStaff(this.self, this.supervisor, this.staff);
+}
+📌 نکته:
+
+self اطلاعات کارمند اصلی را نگه می‌دارد.
+supervisor نام سرپرست را نگه می‌دارد.
+staff لیستی از زیردستان را نگه می‌دارد.
+جمع‌بندی 🎯
+✅ استفاده از کلاس‌های سفارشی در Drift به شما کمک می‌کند که کد تمیزتر و ساختاریافته‌تری داشته باشید.
+✅ با استفاده از WITH می‌توان کلاس‌های Dart را مستقیماً در Drift تعریف کرد.
+✅ می‌توان از سازنده‌های نام‌گذاری شده برای کلاس‌ها استفاده کرد.
+✅ نتایج کوئری‌ها را می‌توان در کلاس‌های سفارشی مدیریت کرد.
+✅ Drift می‌تواند اطلاعات تو در تو را در قالب آبجکت‌های Dart بازگرداند.
+
+//JSON serialization
+
+آموزش ساده استفاده از DataClass سفارشی در Drift و JSON Serialization
+
+۱. استفاده از DataClass سفارشی در جداول Drift
+اگر می‌خواهید برای جداول خود در Drift یک کلاس داده‌ای (DataClass) مشخص کنید، می‌توانید از WITH استفاده کنید.
+
+مثال: تعریف جدول با DataClass اختصاصی
+فرض کنید فایلی به نام user.dart دارید که کلاس User را تعریف کرده است:
+
+class User {
+  final int id;
+  final String name;
+  final DateTime birthDate;
+
+  User(this.id, this.name, this.birthDate);
+}
+حالا در فایل .drift، می‌توانیم این کلاس را به عنوان DataClass جدول users معرفی کنیم:
+
+import 'user.dart';
+
+CREATE TABLE users(
+  id INTEGER NOT NULL PRIMARY KEY,
+  name TEXT NOT NULL,
+  birth_date DATETIME NOT NULL
+) WITH User;
+📌 نکته: حتماً باید فایل user.dart را در .drift ایمپورت کنید.
+
+۲. استفاده از DataClass برای نمایش View
+می‌توان یک View را هم به یک کلاس مرتبط کرد:
+
+CREATE VIEW my_view WITH ExistingClass AS SELECT ...;
+۳. استفاده از Named Constructor در DataClass
+اگر کلاس شما دارای سازنده نام‌گذاری‌شده (named constructor) باشد، می‌توانید آن را هم مشخص کنید:
+
+CREATE TABLE users(
+  id INTEGER NOT NULL PRIMARY KEY,
+  name TEXT NOT NULL,
+  birth_date DATETIME NOT NULL
+) WITH User.myNamedConstructor;
+۴. استفاده از DataClass برای Queries
+برای نگاشت یک کلاس داده‌ای سفارشی به نتایج یک Query، از WITH استفاده می‌کنیم.
+
+مثال:
+فرض کنید کلاسی با این ساختار داریم:
+
+class MyExistingClass {
+  final String name;
+  final double avgAge;
+
+  MyExistingClass(this.name, this.avgAge);
+}
+در فایل .drift می‌توانیم این کلاس را برای نتیجه‌ی Query استفاده کنیم:
+
+
+import 'my_existing_class.dart';
+
+myQuery WITH MyExistingClass:
+SELECT name, AVG(age) AS avg_age FROM entries GROUP BY category;
+📌 نکته: اگر کلاس شما سازنده‌ی نام‌گذاری‌شده دارد، می‌توانید از آن هم استفاده کنید:
+
+myQuery WITH MyExistingClass.fromSql:
+SELECT name, AVG(age) AS avg_age FROM entries GROUP BY category;
+۵. تبدیل DataClass ها به JSON
+Drift از تبدیل کلاس‌های داده‌ای به JSON پشتیبانی می‌کند.
+
+۵.۱. نمونه‌ای از تبدیل JSON به کلاس در Dart
+
+final User user = User.fromJson({'id': 3, 'username': 'awesomeuser'});
+print('Deserialized user: ${user.username}');
+۶. تنظیم نام کلیدهای JSON
+به‌صورت پیش‌فرض، Drift نام ستون‌ها را به‌صورت snake_case در JSON ذخیره می‌کند.
+
+مثال:
+
+class Todos extends Table {
+  late final id = integer().autoIncrement()();
+  late final title = text()();
+  late final createdAt = dateTime().withDefault(currentDateAndTime)();
+}
+خروجی JSON:
+
+{
+  "id": 1,
+  "title": "Todo 1",
+  "created_at": "2024-02-29T12:00:00Z"
+}
+۷. تغییر نام کلید JSON
+برای تغییر نام یک کلید JSON، از @JsonKey در Drift استفاده کنید.
+
+مثال:
+
+@JsonKey('created')
+late final createdAt = dateTime().withDefault(currentDateAndTime)();
+خروجی JSON:
+
+{
+  "id": 1,
+  "title": "Todo 1",
+  "created": "2024-02-29T12:00:00Z"
+}
+۸. استفاده از نام ستون‌های SQL به عنوان کلید JSON
+اگر بخواهید همان نامی که در SQL تعریف کرده‌اید در JSON ذخیره شود، فایل build.yaml را تغییر دهید:
+
+targets:
+  $default:
+    builders:
+      drift_dev:
+        options:
+          use_sql_column_name_as_json_key : true
+جمع‌بندی
+✅ DataClass سفارشی را می‌توان با WITH به جدول یا Query اضافه کرد.
+✅ سازنده‌های نام‌گذاری‌شده در کلاس‌های سفارشی پشتیبانی می‌شوند.
+✅ در JSON، ستون‌ها به‌صورت پیش‌فرض به snake_case ذخیره می‌شوند.
+✅ می‌توان نام کلیدهای JSON را با @JsonKey سفارشی‌سازی کرد.
+✅ برای استفاده از نام ستون‌های SQL در JSON، مقدار use_sql_column_name_as_json_key را در build.yaml تنظیم کنید.
+
+آموزش ساده Drift و مدیریت داده‌ها در Flutter
+در Flutter، برای ذخیره و مدیریت داده‌ها در دیتابیس SQLite، می‌توان از Drift استفاده کرد که یک فریم‌ورک قوی برای کار با دیتابیس است. Drift دو روش برای نوشتن کوئری‌ها ارائه می‌دهد:
+
+Query Builder: نوشتن کوئری‌ها مشابه SQL ولی در قالب Dart.
+Manager Interface: روش جدید و راحت‌تر برای نوشتن کوئری‌ها، مخصوصاً برای کسانی که آشنایی زیادی با SQL ندارند.
+۱. تعریف جدول در Drift
+در Drift، هر جدول به‌صورت یک کلاس تعریف می‌شود. برای مثال، فرض کنیم یک جدول برای ذخیره وظایف (ToDo) داشته باشیم:
+
+dart
+Copy
+Edit
+class TodoItems extends Table {
+  IntColumn get id => integer().autoIncrement()(); // ستون ID که به‌طور خودکار مقدار می‌گیرد.
+  TextColumn get title => text().withLength(min: 6, max: 32)(); // ستون عنوان با حداقل ۶ و حداکثر ۳۲ کاراکتر.
+  TextColumn get content => text().named('body')(); // ستون توضیحات که در دیتابیس با نام 'body' ذخیره می‌شود.
+  DateTimeColumn get createdAt => dateTime().nullable()(); // ستون تاریخ ایجاد که می‌تواند مقدار نداشته باشد.
+}
+۲. خواندن اطلاعات از دیتابیس
+وقتی Drift را با Manager Interface استفاده کنید، برای دریافت اطلاعات نیازی به نوشتن کوئری‌های پیچیده SQL ندارید. مثلا برای دریافت تمام وظایف:
+
+dart
+Copy
+Edit
+Future<void> selectTodoItems() async {
+  final allItems = await managers.todoItems.get(); // دریافت همه وظایف
+  final stream = managers.todoItems.watch(); // دریافت وظایف به‌صورت بلادرنگ (Real-time)
+  final singleItem = await managers.todoItems.filter((f) => f.id(1)).getSingle(); // دریافت یک وظیفه خاص با ID مشخص
+}
+۳. فیلتر کردن داده‌ها
+در Drift، می‌توان با شرایط مختلف اطلاعات را فیلتر کرد:
+
+dart
+Copy
+Edit
+Future<void> filterTodoItems() async {
+  final itemsWithTitle = managers.todoItems.filter((f) => f.title("Title")); // فقط وظایفی که عنوانشان "Title" است.
+  final itemsWithConditions = managers.todoItems.filter((f) => f.title("Title") & f.content("Content")); // عنوان "Title" و توضیحات "Content"
+  final itemsWithOrCondition = managers.todoItems.filter((f) => f.title("Title") | f.content.not.isNull()); // عنوان "Title" یا توضیحات مقدار داشته باشد.
+}
+۴. استفاده از ارتباط بین جداول
+اگر در جدول ToDo بخواهیم به دسته‌بندی (Category) مرتبط باشد، می‌توانیم این ارتباط را مشخص کنیم:
+
+dart
+Copy
+Edit
+class TodoItems extends Table {
+  IntColumn get category => integer().nullable().references(TodoCategory, #id)(); // ارتباط با جدول دسته‌بندی‌ها
+}
+دریافت داده‌های مرتبط
+اگر بخواهیم همراه با وظایف، اطلاعات دسته‌بندی آن‌ها را هم دریافت کنیم، دو روش داریم:
+
+روش ساده ولی غیربهینه (باعث اجرای چندین کوئری جداگانه می‌شود):
+dart
+Copy
+Edit
+Future<void> references() async {
+  final todosWithRefs = await managers.todoItems.withReferences().get();
+  for (final (todo, refs) in todosWithRefs) {
+    final category = await refs.category?.getSingle(); // دریافت دسته‌بندی مربوط به هر وظیفه
+  }
+}
+مشکل این روش این است که اگر ۱۰۰۰ وظیفه داشته باشیم، Drift ۱۰۰۰ کوئری جداگانه برای دریافت دسته‌بندی اجرا می‌کند که کارایی را کاهش می‌دهد.
+
+۵. بهینه‌سازی کوئری‌ها با prefetch
+برای جلوگیری از اجرای کوئری‌های اضافی، می‌توان از prefetching استفاده کرد که تمام اطلاعات را در یک کوئری دریافت می‌کند:
+
+
+Future<void> referencesPrefetch() async {
+  final todosWithRefs = await managers.todoItems.withReferences(
+    (prefetch) => prefetch(category: true),
+  ).get();
+
+  for (final (todo, refs) in todosWithRefs) {
+    final category = refs.category?.prefetchedData?.firstOrNull; // دریافت دسته‌بندی بهینه
+  }
+}
+۶. فیلتر کردن داده‌ها بر اساس ارتباط بین جداول
+گاهی می‌خواهیم اطلاعات را بر اساس رابطه بین جداول فیلتر کنیم:
+
+Future<void> relationalFilter() async {
+  final schoolTodos = managers.todoItems.filter((f) => f.category.description("School")); // دریافت تمام وظایف مرتبط با دسته‌بندی "School"
+}
+همچنین می‌توان دسته‌بندی‌هایی را فیلتر کرد که دارای وظایفی با شرایط خاص باشند:
+
+Future<void> reverseRelationalFilter() async {
+  final categoriesWithTodo1 = managers.todoCategory.filter((f) => f.todoItemsRefs((f) => f.id(1))); // دسته‌بندی‌هایی که حداقل یک وظیفه با ID=1 دارند.
+}
+۷. حل مشکل تداخل نام‌ها
+اگر در یک جدول چندین ارتباط به یک جدول دیگر داشته باشیم، نام‌ها ممکن است تداخل داشته باشند. در این صورت می‌توان با @ReferenceName نام سفارشی مشخص کرد:
+
+class Groups extends Table {
+  @ReferenceName("administeredGroups")
+  IntColumn get admin => integer().nullable().references(Users, #id)();
+
+  @ReferenceName("ownedGroups")
+  IntColumn get owner => integer().references(Users, #id)();
+}
+حالا می‌توانیم فیلتر کنیم:
+
+
+Future<void> reverseNamedRelationalFilter() async {
+  managers.users.filter(
+    (f) => f.administeredGroups((f) => f.name.contains("Business")) | f.ownedGroups((f) => f.id.isIn([1, 2, 4, 5])),
+  );
+}
+جمع‌بندی
+Drift یک ابزار قوی برای مدیریت دیتابیس در Flutter است.
+Manager Interface به شما اجازه می‌دهد بدون نوشتن کوئری‌های پیچیده، داده‌ها را مدیریت کنید.
+می‌توان داده‌ها را فیلتر کرد، بهینه‌سازی کرد و ارتباط بین جداول را مدیریت کرد.
+با استفاده از prefetching، می‌توان از اجرای کوئری‌های غیرضروری جلوگیری کرد.
+برای جلوگیری از تداخل نام‌ها در ارتباط بین جداول، می‌توان از @ReferenceName استفاده کرد.
