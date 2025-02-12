@@ -1,0 +1,135 @@
+آموزش ساده عملیات مدیریت داده‌ها با Drift در Flutter
+۱. مرتب‌سازی داده‌ها (Ordering)
+شما می‌توانید نتایج یک کوئری را با متد orderBy مرتب کنید:
+
+Future<void> orderWithType() async {
+  // مرتب‌سازی بر اساس تاریخ ایجاد به صورت صعودی
+  managers.todoItems.orderBy((o) => o.createdAt.asc());
+  // مرتب‌سازی ابتدا بر اساس عنوان، سپس محتوای آیتم‌ها به صورت صعودی
+  managers.todoItems.orderBy((o) => o.title.asc() & o.content.asc());
+
+}
+
+🔹 مدیریت مقدار NULL در مرتب‌سازی:
+می‌توانید تعیین کنید که مقادیر NULL در ابتدا یا انتهای لیست قرار بگیرند:
+
+managers.todoItems.orderBy((o) => o.title.asc(nulls: NullsOrder.first));
+۲. شمارش و بررسی وجود داده‌ها (Count و Exists)
+✅ شمارش تعداد رکوردها:
+
+
+Future<void> count() async {
+  // شمارش کل آیتم‌ها
+  await managers.todoItems.count();
+
+  // شمارش آیتم‌هایی که عنوان آن‌ها "Title" است
+  await managers.todoItems.filter((f) => f.title.equals("Title")).count();
+}
+
+✅ بررسی وجود داده:
+
+Future<void> exists() async {
+  // بررسی وجود هر آیتمی در جدول
+  await managers.todoItems.exists();
+
+  // بررسی وجود آیتمی با عنوان مشخص
+  await managers.todoItems.filter((f) => f.title.equals("Title")).exists();
+}
+۳. به‌روزرسانی داده‌ها (Update)
+✅ به‌روزرسانی مقدار فیلدهای یک یا چند سطر:
+
+Future<void> updateTodoItems() async {
+  // بروزرسانی تمام آیتم‌ها
+  await managers.todoItems.update((o) => o(content: Value('New Content')));
+
+  // بروزرسانی آیتم‌هایی با id مشخص
+  await managers.todoItems
+      .filter((f) => f.id.isIn([1, 2, 3]))
+      .update((o) => o(content: Value('New Content')));
+}
+✅ جایگزینی یک یا چند سطر به‌طور کامل:
+
+Future<void> replaceTodoItems() async {
+  // جایگزینی یک آیتم مشخص
+  var obj = await managers.todoItems.filter((o) => o.id.equals(1)).getSingle();
+  obj = obj.copyWith(content: 'New Content');
+  await managers.todoItems.replace(obj);
+
+  // جایگزینی چندین آیتم
+  var objs = await managers.todoItems.filter((o) => o.id.isIn([1, 2, 3])).get();
+  objs = objs.map((o) => o.copyWith(content: 'New Content')).toList();
+  await managers.todoItems.bulkReplace(objs);
+}
+۴. ایجاد داده‌های جدید (Insert)
+✅ ایجاد یک یا چند رکورد جدید:
+
+Future<void> createTodoItem() async {
+  // ایجاد یک آیتم جدید
+  await managers.todoItems.create((o) => o(title: 'Title', content: 'Content'));
+
+  // استفاده از حالت جایگزینی در صورت وجود داده مشابه
+  await managers.todoItems.create(
+      (o) => o(title: 'Title', content: 'New Content'),
+      mode: InsertMode.replace);
+
+  // ایجاد چندین آیتم به صورت همزمان
+  await managers.todoItems.bulkCreate(
+    (o) => [
+      o(title: 'Title 1', content: 'Content 1'),
+      o(title: 'Title 2', content: 'Content 2'),
+    ],
+  );
+}
+۵. حذف داده‌ها (Delete)
+✅ حذف یک یا چند سطر از جدول:
+
+Future<void> deleteTodoItems() async {
+  // حذف تمام آیتم‌ها
+  await managers.todoItems.delete();
+
+  // حذف یک آیتم خاص
+  await managers.todoItems.filter((f) => f.id.equals(5)).delete();
+}
+۶. استفاده از فیلدهای محاسباتی (Computed Fields)
+✅ محاسبه طول عنوان آیتم‌ها و استفاده در فیلتر و مرتب‌سازی:
+
+final titleLengthField = db.managers.todoItems.computedField((o) => o.title.length);
+final manager = db.managers.todoItems.withFields([titleLengthField]);
+
+// فیلتر کردن بر اساس طول عنوان
+manager.filter((f) => titleLengthField.filter(10));
+
+// مرتب‌سازی بر اساس طول عنوان
+manager.orderBy((o) => titleLengthField.order.asc());
+
+// خواندن مقدار محاسبه شده
+for (final (item, refs) in await manager.get()) {
+  final titleLength = titleLengthField.read(refs);
+  print('Item ${item.id} has a title length of $titleLength');
+}
+✅ دسترسی به اطلاعات مرتبط (مثلاً نام کاربر هر آیتم):
+
+final todoUserName = db.managers.todoItems.computedField((o) => o.category.user.name);
+final manager = db.managers.todoItems.withFields([todoUserName]);
+
+for (final (item, refs) in await manager.get()) {
+  final userName = todoUserName.read(refs);
+  print('Item ${item.id} has a user with the name $userName');
+}
+✅ استفاده از توابع تجمعی (Aggregate Functions):
+
+final todoCountField = db.managers.todoCategory
+    .computedField((o) => o.todoItemsRefs((o) => o.id).count());
+
+final manager = db.managers.todoCategory.withFields([todoCountField]);
+
+for (final (category, refs) in await manager.get()) {
+  final todoCount = todoCountField.read(refs);
+  print('Category ${category.id} has $todoCount todos');
+}
+🎯 خلاصه
+orderBy: مرتب‌سازی داده‌ها.
+count و exists: شمارش و بررسی وجود داده.
+update و replace: به‌روزرسانی داده‌ها.
+create: درج داده جدید.
+delete: حذف داده‌ها.

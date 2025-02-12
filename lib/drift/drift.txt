@@ -884,9 +884,6 @@ Manager Interface: روش جدید و راحت‌تر برای نوشتن کوئ
 ۱. تعریف جدول در Drift
 در Drift، هر جدول به‌صورت یک کلاس تعریف می‌شود. برای مثال، فرض کنیم یک جدول برای ذخیره وظایف (ToDo) داشته باشیم:
 
-dart
-Copy
-Edit
 class TodoItems extends Table {
   IntColumn get id => integer().autoIncrement()(); // ستون ID که به‌طور خودکار مقدار می‌گیرد.
   TextColumn get title => text().withLength(min: 6, max: 32)(); // ستون عنوان با حداقل ۶ و حداکثر ۳۲ کاراکتر.
@@ -896,9 +893,6 @@ class TodoItems extends Table {
 ۲. خواندن اطلاعات از دیتابیس
 وقتی Drift را با Manager Interface استفاده کنید، برای دریافت اطلاعات نیازی به نوشتن کوئری‌های پیچیده SQL ندارید. مثلا برای دریافت تمام وظایف:
 
-dart
-Copy
-Edit
 Future<void> selectTodoItems() async {
   final allItems = await managers.todoItems.get(); // دریافت همه وظایف
   final stream = managers.todoItems.watch(); // دریافت وظایف به‌صورت بلادرنگ (Real-time)
@@ -907,9 +901,6 @@ Future<void> selectTodoItems() async {
 ۳. فیلتر کردن داده‌ها
 در Drift، می‌توان با شرایط مختلف اطلاعات را فیلتر کرد:
 
-dart
-Copy
-Edit
 Future<void> filterTodoItems() async {
   final itemsWithTitle = managers.todoItems.filter((f) => f.title("Title")); // فقط وظایفی که عنوانشان "Title" است.
   final itemsWithConditions = managers.todoItems.filter((f) => f.title("Title") & f.content("Content")); // عنوان "Title" و توضیحات "Content"
@@ -918,9 +909,6 @@ Future<void> filterTodoItems() async {
 ۴. استفاده از ارتباط بین جداول
 اگر در جدول ToDo بخواهیم به دسته‌بندی (Category) مرتبط باشد، می‌توانیم این ارتباط را مشخص کنیم:
 
-dart
-Copy
-Edit
 class TodoItems extends Table {
   IntColumn get category => integer().nullable().references(TodoCategory, #id)(); // ارتباط با جدول دسته‌بندی‌ها
 }
@@ -928,9 +916,7 @@ class TodoItems extends Table {
 اگر بخواهیم همراه با وظایف، اطلاعات دسته‌بندی آن‌ها را هم دریافت کنیم، دو روش داریم:
 
 روش ساده ولی غیربهینه (باعث اجرای چندین کوئری جداگانه می‌شود):
-dart
-Copy
-Edit
+
 Future<void> references() async {
   final todosWithRefs = await managers.todoItems.withReferences().get();
   for (final (todo, refs) in todosWithRefs) {
@@ -987,3 +973,4 @@ Manager Interface به شما اجازه می‌دهد بدون نوشتن کو�
 می‌توان داده‌ها را فیلتر کرد، بهینه‌سازی کرد و ارتباط بین جداول را مدیریت کرد.
 با استفاده از prefetching، می‌توان از اجرای کوئری‌های غیرضروری جلوگیری کرد.
 برای جلوگیری از تداخل نام‌ها در ارتباط بین جداول، می‌توان از @ReferenceName استفاده کرد.
+
